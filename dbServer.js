@@ -17,7 +17,7 @@ app.use(express.json());
 
 //FIND USER
 app.post("/login", async (req, res) => {
-    const user = req.body.username;
+    const user = req.body.username.trim();
     const pool = new Pool({
         user: process.env.PGUSER,
         host: process.env.PGHOST,
@@ -27,10 +27,10 @@ app.post("/login", async (req, res) => {
     });
 
     pool.connect();
-    const selectQuery = `SELECT details->>'name' details FROM users WHERE details->>'email'::text = $1`;
+    const selectQuery = `SELECT details->'name'->>'display_name'::text username, details->>'card'::text card, transactions::text transactions FROM tbl_vault_users WHERE details->>'email'::text = $1`;
 
     // Pass the string and integer to the pool's query() method
-    pool.query(selectQuery, [user], (err, result) => {
+    pool.query(selectQuery, [user], (err, result) => {        
         if (err) {
             let response_data = {
                 status: 409,
@@ -40,11 +40,59 @@ app.post("/login", async (req, res) => {
             res.json(response_data);
         }
 
-        if (res) {
+        if (result) {
+            let udetails = {};
+            udetails = JSON.parse(result.rows[0].card);
+            udetails.username = result.rows[0].username;
+            udetails.amount = udetails.amount.toString();
+            udetails.transactions = JSON.parse(result.rows[0].transactions);
             let response_data = {
                 status: 200,
                 message: "User Data",
-                data: result.rows
+                data: udetails
+            };
+            res.json(response_data);//the data should be contained here
+        }
+    })
+
+    pool.end()
+}) //end of app.post()
+
+
+app.post("/profile", async (req, res) => {
+    const user = req.body.username.trim();
+    const pool = new Pool({
+        user: process.env.PGUSER,
+        host: process.env.PGHOST,
+        database: process.env.PGDATABASE,
+        password: process.env.PGPASSWORD,
+        port: process.env.PGPORT,
+    });
+
+    pool.connect();
+    const selectQuery = `SELECT details->'name'->>'display_name'::text username, details->>'card'::text card, transactions::text transactions FROM tbl_vault_users WHERE details->>'email'::text = $1`;
+
+    // Pass the string and integer to the pool's query() method
+    pool.query(selectQuery, [user], (err, result) => {        
+        if (err) {
+            let response_data = {
+                status: 409,
+                message: "User Data Conflict",
+                data: null
+            };
+            res.json(response_data);
+        }
+
+        if (result) {
+            let udetails = {};
+            udetails = JSON.parse(result.rows[0].card);
+            udetails.username = result.rows[0].username;
+            udetails.amount = udetails.amount.toString();
+            udetails.transactions = JSON.parse(result.rows[0].transactions);
+            let response_data = {
+                status: 200,
+                message: "User Data",
+                data: udetails
             };
             res.json(response_data);//the data should be contained here
         }
