@@ -45,9 +45,11 @@ app.post("/login", async (req, res) => {
             udetails = JSON.parse(result.rows[0].card);
             udetails.username = result.rows[0].username;
             udetails.amount = udetails.amount.toString();
+            udetails.cardnumber = udetails.number.toString();
+            delete udetails.number;
             udetails.transactions = JSON.parse(result.rows[0].transactions);
             let response_data = {
-                status: 200,
+                //status: "200",
                 message: "User Data",
                 data: udetails
             };
@@ -59,8 +61,8 @@ app.post("/login", async (req, res) => {
 }) //end of app.post()
 
 
-app.post("/profile", async (req, res) => {
-    const user = req.body.username.trim();
+app.get("/profile/:cardnumber", async (req, res) => {
+    const userc = req.params.cardnumber;
     const pool = new Pool({
         user: process.env.PGUSER,
         host: process.env.PGHOST,
@@ -70,10 +72,10 @@ app.post("/profile", async (req, res) => {
     });
 
     pool.connect();
-    const selectQuery = `SELECT details->'name'->>'display_name'::text username, details->>'card'::text card, transactions::text transactions FROM tbl_vault_users WHERE details->>'email'::text = $1`;
+    const selectQuery = `SELECT details->'name'->>'display_name'::text username, details->>'card'::text card, transactions::text transactions FROM tbl_vault_users WHERE details->'card'->>'number'::text = $1`;
 
     // Pass the string and integer to the pool's query() method
-    pool.query(selectQuery, [user], (err, result) => {        
+    pool.query(selectQuery, [userc], (err, result) => {        
         if (err) {
             let response_data = {
                 status: 409,
@@ -85,18 +87,21 @@ app.post("/profile", async (req, res) => {
 
         if (result) {
             let udetails = {};
+            
             udetails = JSON.parse(result.rows[0].card);
             udetails.username = result.rows[0].username;
             udetails.amount = udetails.amount.toString();
             udetails.transactions = JSON.parse(result.rows[0].transactions);
             let response_data = {
-                status: 200,
+                //status: 200,
                 message: "User Data",
                 data: udetails
             };
+            console.log();
             res.json(response_data);//the data should be contained here
         }
     })
 
     pool.end()
-}) //end of app.post()
+
+}) //end of app.get()
